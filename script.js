@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedTimeInput = document.getElementById('selected-time');
 
     // Backend API Configuration
-    const API_BASE_URL = 'https://67a4c4e7be5e6b0854b1c18e--ornate-marigold-5bd8fa.netlify.app';
+    const API_BASE_URL = '/api';
 
     // Available times
     const availableTimes = [
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedTime = document.querySelector('.time-button.active').dataset.time;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/appointments/`, {
+            const response = await fetch(`${API_BASE_URL}/create-appointment`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadAvailableSlots(selectedDate) {
         try {
-            const response = await fetch(`${API_BASE_URL}/available-slots/?target_date=${selectedDate}`);
+            const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`);
             
             if (!response.ok) {
                 throw new Error('Failed to load available slots');
@@ -178,10 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageDiv = document.getElementById('message');
 
     // Backend API Configuration
-    const API_BASE_URL = 'https://67a4c4e7be5e6b0854b1c18e--ornate-marigold-5bd8fa.netlify.app';
-
-    // Available times
-    const availableTimes = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
+    const API_BASE_URL = '/api';
 
     // Validate Israeli phone number
     function validatePhoneNumber(phone) {
@@ -274,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/appointments`, {
+            const response = await fetch(`${API_BASE_URL}/create-appointment`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

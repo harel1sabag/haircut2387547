@@ -1,0 +1,14 @@
+{
+  "name": "haircut-booking",
+  "version": "1.0.0",
+  "description": "Haircut Booking Website",
+  "scripts": {
+    "start": "netlify dev"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.10.1"
+  }
+}

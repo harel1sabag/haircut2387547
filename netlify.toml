@@ -1,15 +1,16 @@
 [build]
+  functions = "functions"
   publish = "."
-  command = "echo 'Static site deployment'"
+  command = "npm install"
 
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://your-backend-url.com"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self'"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
