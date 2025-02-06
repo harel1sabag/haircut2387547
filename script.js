@@ -91,7 +91,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`);
             
             if (!response.ok) {
-                throw new Error('Failed to fetch available slots');
+                const errorText = await response.text();
+                console.error('Full error response:', errorText);
+                throw new Error(`Failed to fetch available slots: ${response.status}`);
             }
 
             const availableSlots = await response.json();
@@ -172,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch('/.netlify/functions/create-appointment', {
+            const response = await fetch(`${API_BASE_URL}/create-appointment`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
