@@ -134,12 +134,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
+            console.log('Appointment submission response:', response);
+
             if (!response.ok) {
                 const errorData = await response.json();
+                console.error('Failed to book appointment:', errorData);
                 throw new Error(errorData.detail || 'Failed to book appointment');
             }
 
             const confirmationData = await response.json();
+            console.log('Appointment submission result:', confirmationData);
             showConfirmation(confirmationData);
         } catch (error) {
             console.error('Error:', error);
@@ -149,16 +153,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadAvailableSlots(selectedDate) {
         try {
+            console.log('Loading available slots for date:', selectedDate);
             const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`);
             
+            console.log('Available slots response:', response);
+
             if (!response.ok) {
-                throw new Error('Failed to load available slots');
+                const errorText = await response.text();
+                console.error('Failed to load available slots:', errorText);
+                throw new Error('Failed to load available slots: ' + errorText);
             }
 
             const availableSlots = await response.json();
+            console.log('Available slots:', availableSlots);
             updateTimeSlots(availableSlots);
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error loading available slots:', error);
             showError('Could not load available time slots');
         }
     }
@@ -189,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch available time slots
     async function fetchAvailableSlots(selectedDate) {
         try {
+            console.log('Fetching available slots for date:', selectedDate);
             const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`, {
                 method: 'GET',
                 headers: {
@@ -196,15 +207,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
+            console.log('Available slots response:', response);
+
             if (!response.ok) {
-                throw new Error('Failed to fetch available slots');
+                const errorText = await response.text();
+                console.error('Failed to fetch available slots:', errorText);
+                throw new Error('Failed to fetch available slots: ' + errorText);
             }
 
             const availableSlots = await response.json();
+            console.log('Available slots:', availableSlots);
             return availableSlots;
         } catch (error) {
             console.error('Error fetching available slots:', error);
-            messageDiv.textContent = 'שגיאה בטעינת זמנים פנויים';
+            messageDiv.textContent = 'שגיאה בטעינת זמנים פנויים: ' + error.message;
             messageDiv.style.color = 'red';
             return [];
         }
@@ -245,32 +261,39 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = dateInput.value;
         const time = selectedTimeInput.value;
 
+        console.log('Submitting appointment:', { name, phone, date, time });
+
         // Validate inputs
         if (!name || name.length < 2) {
+            console.warn('Invalid name');
             messageDiv.textContent = 'אנא הזן שם תקין';
             messageDiv.style.color = 'red';
             return;
         }
 
         if (!validatePhoneNumber(phone)) {
+            console.warn('Invalid phone number');
             messageDiv.textContent = 'אנא הזן מספר טלפון תקין (05xxxxxxxx)';
             messageDiv.style.color = 'red';
             return;
         }
 
         if (!date) {
+            console.warn('No date selected');
             messageDiv.textContent = 'אנא בחר תאריך';
             messageDiv.style.color = 'red';
             return;
         }
 
         if (!time) {
+            console.warn('No time selected');
             messageDiv.textContent = 'אנא בחר שעה';
             messageDiv.style.color = 'red';
             return;
         }
 
         try {
+            console.log('Sending request to:', `${API_BASE_URL}/create-appointment`);
             const response = await fetch(`${API_BASE_URL}/create-appointment`, {
                 method: 'POST',
                 headers: {
@@ -284,7 +307,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
+            console.log('Appointment submission response:', response);
+
             const result = await response.json();
+            console.log('Appointment submission result:', result);
 
             if (response.ok) {
                 messageDiv.textContent = 'התור נקבע בהצלחה! תודה לך.';
@@ -297,12 +323,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedTimeInput.value = '';
                 document.getElementById('time-slots').innerHTML = '';
             } else {
+                console.error('Appointment submission error:', result);
                 messageDiv.textContent = result.error || 'שגיאה בקביעת תור';
                 messageDiv.style.color = 'red';
             }
         } catch (error) {
-            console.error('Error:', error);
-            messageDiv.textContent = 'שגיאה בקביעת תור. אנא נסה שוב.';
+            console.error('Submission error:', error);
+            messageDiv.textContent = 'שגיאה בקביעת תור. אנא נסה שוב. ' + error.message;
             messageDiv.style.color = 'red';
         }
     }
@@ -310,4 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event Listeners
     dateInput.addEventListener('change', populateTimeSlots);
     submitButton.addEventListener('click', submitAppointment);
+
+    // Optional: Add console log to verify script is loaded
+    console.log('Booking script initialized');
 });
