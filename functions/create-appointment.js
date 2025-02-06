@@ -1,10 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Detailed logging function
-function logEvent(message, details = {}) {
+// Enhanced logging function
+function debugLog(message, details = {}) {
     console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
+        source: 'create-appointment',
         message,
+        environment: {
+            SUPABASE_URL: !!process.env.SUPABASE_URL,
+            SUPABASE_KEY: process.env.SUPABASE_KEY ? 'SET' : 'UNSET'
+        },
         ...details
     }));
 }
@@ -16,11 +21,11 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'Content-Type'
 };
 
-// Validate environment variables
+// Validate environment variables early
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-    logEvent('CRITICAL: Missing Supabase configuration', {
-        SUPABASE_URL: !!process.env.SUPABASE_URL,
-        SUPABASE_KEY: !!process.env.SUPABASE_KEY
+    debugLog('CRITICAL: Missing Supabase configuration', {
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_KEY: process.env.SUPABASE_KEY ? '***MASKED***' : 'UNSET'
     });
 }
 
@@ -31,23 +36,33 @@ let supabase;
 
 try {
     supabase = createClient(supabaseUrl, supabaseKey);
+    debugLog('Supabase client created successfully');
 } catch (clientError) {
-    logEvent('Failed to create Supabase client', { error: clientError.message });
+    debugLog('CRITICAL: Failed to create Supabase client', { 
+        errorMessage: clientError.message,
+        errorStack: clientError.stack
+    });
 }
 
 // Validation functions
 function validatePhoneNumber(phone) {
-    // Israeli mobile phone number validation
-    const phoneRegex = /^05\d{8}$/;
-    return phoneRegex.test(phone.replace(/\D/g, ''));
+    // Israeli phone number validation
+    const phoneRegex = /^(0(5[^7]|[2-4]|[8-9])|[1-9])\d{7}$/;
+    return phoneRegex.test(phone);
 }
 
 function validateName(name) {
-    // Ensure name is at least 2 characters long and contains only Hebrew/English letters
-    return name.trim().length >= 2 && /^[\u0590-\u05FF\u0020a-zA-Z]+$/.test(name);
+    // Basic name validation: at least 2 characters, only Hebrew/English letters
+    const nameRegex = /^[א-תa-zA-Z\s]{2,}$/;
+    return nameRegex.test(name);
 }
 
 exports.handler = async (event, context) => {
+    debugLog('Appointment creation request received', { 
+        method: event.httpMethod,
+        headers: event.headers
+    });
+
     // Handle CORS preflight requests
     if (event.httpMethod === 'OPTIONS') {
         return {
@@ -59,23 +74,26 @@ exports.handler = async (event, context) => {
 
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
-        logEvent('Invalid HTTP method', { method: event.httpMethod });
+        debugLog('Invalid HTTP method', { method: event.httpMethod });
         return { 
             statusCode: 405, 
             headers: corsHeaders,
-            body: JSON.stringify({ error: 'Method Not Allowed' }) 
+            body: JSON.stringify({ 
+                error: 'שיטת בקשה לא חוקית', 
+                details: 'רק בקשות POST מותרות' 
+            }) 
         };
     }
 
     // Validate Supabase client
     if (!supabase) {
-        logEvent('Supabase client not initialized');
+        debugLog('CRITICAL: Supabase client not initialized');
         return {
             statusCode: 500,
             headers: corsHeaders,
             body: JSON.stringify({ 
-                error: 'Server configuration error', 
-                details: 'Supabase client could not be created' 
+                error: 'שגיאת תצורת שרת', 
+                details: 'לא ניתן ליצור לקוח Supabase' 
             })
         };
     }
@@ -83,118 +101,109 @@ exports.handler = async (event, context) => {
     try {
         // Parse request body
         const body = JSON.parse(event.body);
-        const { name, phone, date, time } = body;
-
-        logEvent('Appointment creation request', { 
-            name, 
-            phone: phone.replace(/\d{4}$/, '****'), 
-            date, 
-            time 
+        debugLog('Parsed request body', { 
+            bodyKeys: Object.keys(body),
+            date: body.date,
+            time: body.time
         });
 
+        // Validate input
+        const { date, time, name, phone } = body;
+
         // Comprehensive input validation
-        if (!name || !validateName(name)) {
-            return {
-                statusCode: 400,
-                headers: corsHeaders,
-                body: JSON.stringify({ error: 'שם לא תקין. אנא הזן שם תקין בעברית או באנגלית.' })
-            };
+        const validationErrors = [];
+
+        if (!date) validationErrors.push('תאריך הוא שדה חובה');
+        if (!time) validationErrors.push('שעה היא שדה חובה');
+        
+        if (!name) {
+            validationErrors.push('שם הוא שדה חובה');
+        } else if (!validateName(name)) {
+            validationErrors.push('שם לא תקין. אנא הזן שם באותיות עברית/אנגלית');
         }
 
-        if (!phone || !validatePhoneNumber(phone)) {
-            return {
-                statusCode: 400,
-                headers: corsHeaders,
-                body: JSON.stringify({ error: 'מספר טלפון לא תקין. אנא הזן מספר טלפון של פלאפון ישראלי (05xxxxxxxx).' })
-            };
+        if (!phone) {
+            validationErrors.push('מספר טלפון הוא שדה חובה');
+        } else if (!validatePhoneNumber(phone)) {
+            validationErrors.push('מספר טלפון לא תקין. אנא הזן מספר טלפון ישראלי תקין');
         }
 
-        if (!date) {
-            return {
-                statusCode: 400,
-                headers: corsHeaders,
-                body: JSON.stringify({ error: 'אנא בחר תאריך' })
-            };
-        }
-
-        if (!time) {
-            return {
-                statusCode: 400,
-                headers: corsHeaders,
-                body: JSON.stringify({ error: 'אנא בחר שעה' })
-            };
-        }
-
-        // Check if slot is already booked
-        const { data: existingAppointment, error: checkError } = await supabase
+        // Check for existing appointments at same time and date
+        const { data: existingAppointments, error: existingError } = await supabase
             .from('appointments')
             .select('*')
             .eq('date', date)
-            .eq('time', time)
-            .single();
+            .eq('time', time);
 
-        if (checkError && checkError.code !== 'PGRST116') {
-            logEvent('Error checking existing appointments', { error: checkError });
-            return {
-                statusCode: 500,
-                headers: corsHeaders,
-                body: JSON.stringify({ 
-                    error: 'שגיאה בבדיקת זמינות התור', 
-                    details: checkError.message 
-                })
-            };
+        if (existingError) {
+            debugLog('Error checking existing appointments', {
+                errorMessage: existingError.message,
+                errorDetails: existingError
+            });
+            validationErrors.push('שגיאה בבדיקת זמינות התור');
         }
 
-        if (existingAppointment) {
+        if (existingAppointments && existingAppointments.length > 0) {
+            validationErrors.push('זמן זה כבר תפוס. אנא בחר זמן אחר.');
+        }
+
+        // If validation errors exist, return them
+        if (validationErrors.length > 0) {
+            debugLog('Validation errors', { 
+                errors: validationErrors 
+            });
             return {
                 statusCode: 400,
                 headers: corsHeaders,
-                body: JSON.stringify({ error: 'צר לי, תור זה כבר תפוס. אנא בחר שעה אחרת.' })
-            };
-        }
-
-        // Create appointment
-        const { data, error } = await supabase
-            .from('appointments')
-            .insert([{ 
-                name: name.trim(), 
-                phone: phone.replace(/\D/g, ''), 
-                date, 
-                time 
-            }])
-            .select();
-
-        if (error) {
-            logEvent('Appointment creation error', { error });
-            return {
-                statusCode: 500,
-                headers: corsHeaders,
                 body: JSON.stringify({ 
-                    error: 'שגיאה ביצירת התור', 
-                    details: error.message 
+                    error: 'שגיאות אימות', 
+                    details: validationErrors 
                 })
             };
         }
 
-        logEvent('Appointment created successfully', { 
-            appointmentId: data[0]?.id, 
-            date, 
-            time 
+        // Insert appointment
+        const { data, error } = await supabase
+            .from('appointments')
+            .insert([{ date, time, name, phone }])
+            .select();
+
+        debugLog('Appointment insertion result', { 
+            insertedData: data,
+            insertError: error
         });
 
+        if (error) {
+            debugLog('Supabase insertion error', { 
+                errorMessage: error.message,
+                errorDetails: error,
+                errorCode: error.code
+            });
+            return { 
+                statusCode: 500, 
+                headers: corsHeaders,
+                body: JSON.stringify({ 
+                    error: 'שגיאה ביצירת תור', 
+                    details: error.message 
+                }) 
+            };
+        }
+
+        // Successful appointment creation
         return {
             statusCode: 200,
             headers: corsHeaders,
             body: JSON.stringify({ 
-                message: 'התור נקבע בהצלחה!', 
+                message: 'התור נוצר בהצלחה', 
                 appointment: data[0] 
             })
         };
 
     } catch (error) {
-        logEvent('Unexpected server error', { 
+        debugLog('Unexpected server error', { 
             errorMessage: error.message,
-            errorStack: error.stack 
+            errorStack: error.stack,
+            errorName: error.name
         });
         return { 
             statusCode: 500, 
