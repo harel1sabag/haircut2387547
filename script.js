@@ -88,26 +88,65 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch Available Slots
     async function fetchAvailableSlots(selectedDate) {
         try {
-            const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`);
+            // Clear previous time slots and show loading
+            timesRow.innerHTML = '<div class="loading">טוען זמנים פנויים...</div>';
             
+            // Ensure date is in correct format
+            const formattedDate = new Date(selectedDate).toISOString().split('T')[0];
+            
+            const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${formattedDate}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            // Detailed error handling
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Full error response:', errorText);
-                throw new Error(`Failed to fetch available slots: ${response.status}`);
+                
+                // Different handling based on status
+                switch(response.status) {
+                    case 400:
+                        showMessage('אנא בחר תאריך תקין', true);
+                        break;
+                    case 500:
+                        showMessage('שגיאה בשרת. אנא נסה שוב מאוחר יותר', true);
+                        break;
+                    default:
+                        showMessage('שגיאה בטעינת זמנים פנויים', true);
+                }
+                
+                // Clear times row
+                timesRow.innerHTML = '';
+                return;
             }
 
             const availableSlots = await response.json();
+            
+            // Check if any slots are available
+            if (availableSlots.length === 0) {
+                showMessage('אין זמנים פנויים ביום זה', true);
+                timesRow.innerHTML = '';
+                return;
+            }
+
+            // Populate time slots
             populateTimeSlots(availableSlots);
         } catch (error) {
+            console.error('Available slots fetch error:', error);
             showMessage('שגיאה בטעינת זמנים פנויים', true);
-            console.error('Available slots error:', error);
+            timesRow.innerHTML = '';
         }
     }
 
     // Populate Time Slots
     function populateTimeSlots(availableSlots) {
+        // Clear previous slots
         timesRow.innerHTML = '';
         
+        // Create time slot buttons
         availableSlots.forEach(slot => {
             const timeButton = document.createElement('button');
             timeButton.classList.add('time-button');
