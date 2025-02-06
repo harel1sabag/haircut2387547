@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedTimeInput = document.getElementById('selected-time');
 
     // Backend API Configuration
-    const API_BASE_URL = 'https://haircut-backend.onrender.com';
+    const API_BASE_URL = 'https://YOUR_RENDER_SERVICE_NAME.onrender.com';
 
     // Available times
     const availableTimes = [
