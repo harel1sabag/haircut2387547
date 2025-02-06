@@ -1,5 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// Validate environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    console.error('Missing Supabase configuration');
+}
+
 // Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
@@ -12,8 +17,11 @@ function validatePhoneNumber(phone) {
 }
 
 exports.handler = async (event, context) => {
+    console.log('Appointment creation request received');
+
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
+        console.warn('Invalid HTTP method:', event.httpMethod);
         return { 
             statusCode: 405, 
             body: JSON.stringify({ error: 'Method Not Allowed' }) 
@@ -22,9 +30,11 @@ exports.handler = async (event, context) => {
 
     try {
         const { name, phone, date, time } = JSON.parse(event.body);
+        console.log('Received appointment data:', { name, phone, date, time });
 
         // Input validation
         if (!name || name.length < 2) {
+            console.warn('Invalid name:', name);
             return { 
                 statusCode: 400, 
                 body: JSON.stringify({ error: 'Invalid name' }) 
@@ -32,6 +42,7 @@ exports.handler = async (event, context) => {
         }
 
         if (!validatePhoneNumber(phone)) {
+            console.warn('Invalid phone number:', phone);
             return { 
                 statusCode: 400, 
                 body: JSON.stringify({ error: 'Invalid Israeli phone number' }) 
@@ -47,6 +58,7 @@ exports.handler = async (event, context) => {
             .single();
 
         if (existingAppointments) {
+            console.warn('Time slot already booked:', { date, time });
             return { 
                 statusCode: 400, 
                 body: JSON.stringify({ error: 'Time slot already booked' }) 
@@ -67,8 +79,12 @@ exports.handler = async (event, context) => {
             ])
             .select();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase insertion error:', error);
+            throw error;
+        }
 
+        console.log('Appointment created successfully');
         return {
             statusCode: 201,
             body: JSON.stringify(data[0])
@@ -78,7 +94,7 @@ exports.handler = async (event, context) => {
         console.error('Appointment creation error:', error);
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ error: 'Failed to create appointment' }) 
+            body: JSON.stringify({ error: 'Failed to create appointment', details: error.message }) 
         };
     }
 };
