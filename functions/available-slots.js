@@ -47,6 +47,37 @@ try {
 // Predefined valid time slots
 const VALID_TIMES = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 
+// Table structure validation function
+async function validateTableStructure(supabaseClient) {
+    try {
+        // Attempt to fetch table info
+        const { data, error } = await supabaseClient
+            .from('appointments')
+            .select('id, date, time, name, phone', { count: 'exact' });
+
+        if (error) {
+            debugLog('Table structure validation failed', {
+                errorMessage: error.message,
+                errorCode: error.code
+            });
+            return false;
+        }
+
+        debugLog('Table structure validation successful', {
+            totalRecords: data.length,
+            columns: ['id', 'date', 'time', 'name', 'phone']
+        });
+
+        return true;
+    } catch (catchError) {
+        debugLog('Unexpected error during table validation', {
+            errorMessage: catchError.message,
+            errorStack: catchError.stack
+        });
+        return false;
+    }
+}
+
 exports.handler = async (event, context) => {
     debugLog('Available slots request received', { 
         method: event.httpMethod,
@@ -86,6 +117,20 @@ exports.handler = async (event, context) => {
                     SUPABASE_URL: !!supabaseUrl,
                     SUPABASE_KEY: !!supabaseKey
                 }
+            })
+        };
+    }
+
+    // Validate table structure before processing
+    const tableValid = await validateTableStructure(supabase);
+    if (!tableValid) {
+        debugLog('CRITICAL: Table structure validation failed');
+        return {
+            statusCode: 500,
+            headers: corsHeaders,
+            body: JSON.stringify({ 
+                error: 'Database configuration error', 
+                details: 'Invalid table structure' 
             })
         };
     }
