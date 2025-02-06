@@ -1,5 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// CORS headers
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+};
+
 // Validate environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
     console.error('Missing Supabase configuration');
@@ -16,17 +23,27 @@ const VALID_TIMES = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 exports.handler = async (event, context) => {
     console.log('Available slots request received');
 
+    // Handle CORS preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: ''
+        };
+    }
+
     // Only allow GET requests
     if (event.httpMethod !== 'GET') {
         console.warn('Invalid HTTP method:', event.httpMethod);
         return { 
             statusCode: 405, 
+            headers: corsHeaders,
             body: JSON.stringify({ error: 'Method Not Allowed' }) 
         };
     }
 
     try {
-        const { target_date } = event.queryStringParameters;
+        const { target_date } = event.queryStringParameters || {};
         console.log('Requested date:', target_date);
 
         // Validate date
@@ -34,6 +51,7 @@ exports.handler = async (event, context) => {
             console.warn('No date provided');
             return { 
                 statusCode: 400, 
+                headers: corsHeaders,
                 body: JSON.stringify({ error: 'Date is required' }) 
             };
         }
@@ -46,7 +64,14 @@ exports.handler = async (event, context) => {
 
         if (error) {
             console.error('Supabase query error:', error);
-            throw error;
+            return { 
+                statusCode: 500, 
+                headers: corsHeaders,
+                body: JSON.stringify({ 
+                    error: 'Failed to fetch available slots', 
+                    details: error.message 
+                }) 
+            };
         }
 
         // Determine available slots
@@ -59,6 +84,7 @@ exports.handler = async (event, context) => {
 
         return {
             statusCode: 200,
+            headers: corsHeaders,
             body: JSON.stringify(availableSlots)
         };
 
@@ -66,8 +92,9 @@ exports.handler = async (event, context) => {
         console.error('Available slots error:', error);
         return { 
             statusCode: 500, 
+            headers: corsHeaders,
             body: JSON.stringify({ 
-                error: 'Failed to fetch available slots', 
+                error: 'Unexpected server error', 
                 details: error.message 
             }) 
         };

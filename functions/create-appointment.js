@@ -1,5 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// CORS headers
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+};
+
 // Validate environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
     console.error('Missing Supabase configuration');
@@ -19,11 +26,21 @@ function validatePhoneNumber(phone) {
 exports.handler = async (event, context) => {
     console.log('Appointment creation request received');
 
+    // Handle CORS preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: ''
+        };
+    }
+
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         console.warn('Invalid HTTP method:', event.httpMethod);
         return { 
             statusCode: 405, 
+            headers: corsHeaders,
             body: JSON.stringify({ error: 'Method Not Allowed' }) 
         };
     }
@@ -37,6 +54,7 @@ exports.handler = async (event, context) => {
             console.warn('Invalid name:', name);
             return { 
                 statusCode: 400, 
+                headers: corsHeaders,
                 body: JSON.stringify({ error: 'Invalid name' }) 
             };
         }
@@ -45,7 +63,16 @@ exports.handler = async (event, context) => {
             console.warn('Invalid phone number:', phone);
             return { 
                 statusCode: 400, 
+                headers: corsHeaders,
                 body: JSON.stringify({ error: 'Invalid Israeli phone number' }) 
+            };
+        }
+
+        if (!date || !time) {
+            return { 
+                statusCode: 400, 
+                headers: corsHeaders,
+                body: JSON.stringify({ error: 'Date and time are required' }) 
             };
         }
 
@@ -57,10 +84,20 @@ exports.handler = async (event, context) => {
             .eq('time', time)
             .single();
 
+        if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Database check error:', checkError);
+            return { 
+                statusCode: 500, 
+                headers: corsHeaders,
+                body: JSON.stringify({ error: 'Database error', details: checkError.message }) 
+            };
+        }
+
         if (existingAppointments) {
             console.warn('Time slot already booked:', { date, time });
             return { 
                 statusCode: 400, 
+                headers: corsHeaders,
                 body: JSON.stringify({ error: 'Time slot already booked' }) 
             };
         }
@@ -81,12 +118,17 @@ exports.handler = async (event, context) => {
 
         if (error) {
             console.error('Supabase insertion error:', error);
-            throw error;
+            return { 
+                statusCode: 500, 
+                headers: corsHeaders,
+                body: JSON.stringify({ error: 'Failed to create appointment', details: error.message }) 
+            };
         }
 
         console.log('Appointment created successfully');
         return {
             statusCode: 201,
+            headers: corsHeaders,
             body: JSON.stringify(data[0])
         };
 
@@ -94,7 +136,11 @@ exports.handler = async (event, context) => {
         console.error('Appointment creation error:', error);
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ error: 'Failed to create appointment', details: error.message }) 
+            headers: corsHeaders,
+            body: JSON.stringify({ 
+                error: 'Failed to create appointment', 
+                details: error.message 
+            }) 
         };
     }
 };
