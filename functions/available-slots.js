@@ -1,10 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Detailed logging function
-function logError(message, details = {}) {
-    console.error(JSON.stringify({
+// Enhanced logging function
+function debugLog(message, details = {}) {
+    console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
+        source: 'available-slots',
         message,
+        environment: {
+            SUPABASE_URL: !!process.env.SUPABASE_URL,
+            SUPABASE_KEY: process.env.SUPABASE_KEY ? 'SET' : 'UNSET'
+        },
         ...details
     }));
 }
@@ -16,11 +21,11 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'Content-Type'
 };
 
-// Validate environment variables
+// Validate environment variables early
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-    logError('CRITICAL: Missing Supabase configuration', {
-        SUPABASE_URL: !!process.env.SUPABASE_URL,
-        SUPABASE_KEY: !!process.env.SUPABASE_KEY
+    debugLog('CRITICAL: Missing Supabase configuration', {
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_KEY: process.env.SUPABASE_KEY ? '***MASKED***' : 'UNSET'
     });
 }
 
@@ -31,17 +36,22 @@ let supabase;
 
 try {
     supabase = createClient(supabaseUrl, supabaseKey);
+    debugLog('Supabase client created successfully');
 } catch (clientError) {
-    logError('Failed to create Supabase client', { error: clientError.message });
+    debugLog('CRITICAL: Failed to create Supabase client', { 
+        errorMessage: clientError.message,
+        errorStack: clientError.stack
+    });
 }
 
-// Valid time slots
+// Predefined valid time slots
 const VALID_TIMES = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 
 exports.handler = async (event, context) => {
-    logError('Available slots request received', { 
+    debugLog('Available slots request received', { 
         method: event.httpMethod,
-        queryParams: event.queryStringParameters 
+        queryParams: event.queryStringParameters,
+        headers: event.headers
     });
 
     // Handle CORS preflight requests
@@ -55,7 +65,7 @@ exports.handler = async (event, context) => {
 
     // Only allow GET requests
     if (event.httpMethod !== 'GET') {
-        logError('Invalid HTTP method', { method: event.httpMethod });
+        debugLog('Invalid HTTP method', { method: event.httpMethod });
         return { 
             statusCode: 405, 
             headers: corsHeaders,
@@ -65,24 +75,28 @@ exports.handler = async (event, context) => {
 
     // Validate Supabase client
     if (!supabase) {
-        logError('Supabase client not initialized');
+        debugLog('CRITICAL: Supabase client not initialized');
         return {
             statusCode: 500,
             headers: corsHeaders,
             body: JSON.stringify({ 
                 error: 'Server configuration error', 
-                details: 'Supabase client could not be created' 
+                details: 'Supabase client could not be created',
+                environment: {
+                    SUPABASE_URL: !!supabaseUrl,
+                    SUPABASE_KEY: !!supabaseKey
+                }
             })
         };
     }
 
     try {
         const { target_date } = event.queryStringParameters || {};
-        logError('Processing date request', { target_date });
+        debugLog('Processing date request', { target_date });
 
         // Validate date
         if (!target_date) {
-            logError('No date provided');
+            debugLog('No date provided in request');
             return { 
                 statusCode: 400, 
                 headers: corsHeaders,
@@ -96,15 +110,17 @@ exports.handler = async (event, context) => {
             .select('time')
             .eq('date', target_date);
 
-        logError('Booked slots query result', { 
-            bookedSlots: bookedSlots || 'No slots',
-            error: error || 'No error'
+        debugLog('Booked slots query result', { 
+            bookedSlotsCount: bookedSlots ? bookedSlots.length : 0,
+            queryError: error,
+            queriedDate: target_date
         });
 
         if (error) {
-            logError('Supabase query error', { 
+            debugLog('Supabase query error', { 
                 errorMessage: error.message,
-                errorDetails: error 
+                errorDetails: error,
+                errorCode: error.code
             });
             return { 
                 statusCode: 500, 
@@ -122,7 +138,12 @@ exports.handler = async (event, context) => {
             .filter(time => !bookedTimes.includes(time))
             .map(time => ({ time }));
 
-        logError('Available slots determined', { availableSlots });
+        debugLog('Available slots determined', { 
+            totalSlots: VALID_TIMES.length,
+            bookedSlots: bookedTimes.length,
+            availableSlots: availableSlots.length,
+            availableSlotTimes: availableSlots.map(slot => slot.time)
+        });
 
         return {
             statusCode: 200,
@@ -131,9 +152,10 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        logError('Unexpected server error', { 
+        debugLog('Unexpected server error', { 
             errorMessage: error.message,
-            errorStack: error.stack 
+            errorStack: error.stack,
+            errorName: error.name
         });
         return { 
             statusCode: 500, 
