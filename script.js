@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedTimeInput = document.getElementById('selected-time');
 
     // Backend API Configuration
-    const API_BASE_URL = 'https://your-backend-url.com';
+    const API_BASE_URL = 'https://67a4c4e7be5e6b0854b1c18e--ornate-marigold-5bd8fa.netlify.app';
 
     // Available times
     const availableTimes = [
@@ -142,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmationData = await response.json();
             showConfirmation(confirmationData);
         } catch (error) {
+            console.error('Error:', error);
             showError(error.message);
         }
     }
@@ -166,4 +167,150 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Generate date buttons when page loads
     generateDateButtons();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('name');
+    const phoneInput = document.getElementById('phone');
+    const dateInput = document.getElementById('date');
+    const selectedTimeInput = document.getElementById('selected-time');
+    const submitButton = document.getElementById('submit-button');
+    const messageDiv = document.getElementById('message');
+
+    // Backend API Configuration
+    const API_BASE_URL = 'https://67a4c4e7be5e6b0854b1c18e--ornate-marigold-5bd8fa.netlify.app';
+
+    // Available times
+    const availableTimes = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
+
+    // Validate Israeli phone number
+    function validatePhoneNumber(phone) {
+        const phoneRegex = /^05\d{8}$/;
+        return phoneRegex.test(phone.replace(/\D/g, ''));
+    }
+
+    // Fetch available time slots
+    async function fetchAvailableSlots(selectedDate) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/available-slots?target_date=${selectedDate}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch available slots');
+            }
+
+            const availableSlots = await response.json();
+            return availableSlots;
+        } catch (error) {
+            console.error('Error fetching available slots:', error);
+            messageDiv.textContent = 'שגיאה בטעינת זמנים פנויים';
+            messageDiv.style.color = 'red';
+            return [];
+        }
+    }
+
+    // Populate time slots
+    async function populateTimeSlots() {
+        const selectedDate = dateInput.value;
+        const timeSlotsContainer = document.getElementById('time-slots');
+        timeSlotsContainer.innerHTML = '';
+
+        if (!selectedDate) {
+            messageDiv.textContent = 'אנא בחר תאריך';
+            return;
+        }
+
+        const availableSlots = await fetchAvailableSlots(selectedDate);
+
+        availableSlots.forEach(slot => {
+            const timeButton = document.createElement('button');
+            timeButton.textContent = slot.time;
+            timeButton.classList.add('time-slot');
+            timeButton.addEventListener('click', () => {
+                selectedTimeInput.value = slot.time;
+                document.querySelectorAll('.time-slot').forEach(btn => btn.classList.remove('selected'));
+                timeButton.classList.add('selected');
+            });
+            timeSlotsContainer.appendChild(timeButton);
+        });
+    }
+
+    // Submit appointment
+    async function submitAppointment(event) {
+        event.preventDefault();
+
+        const name = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+        const date = dateInput.value;
+        const time = selectedTimeInput.value;
+
+        // Validate inputs
+        if (!name || name.length < 2) {
+            messageDiv.textContent = 'אנא הזן שם תקין';
+            messageDiv.style.color = 'red';
+            return;
+        }
+
+        if (!validatePhoneNumber(phone)) {
+            messageDiv.textContent = 'אנא הזן מספר טלפון תקין (05xxxxxxxx)';
+            messageDiv.style.color = 'red';
+            return;
+        }
+
+        if (!date) {
+            messageDiv.textContent = 'אנא בחר תאריך';
+            messageDiv.style.color = 'red';
+            return;
+        }
+
+        if (!time) {
+            messageDiv.textContent = 'אנא בחר שעה';
+            messageDiv.style.color = 'red';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/appointments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    phone: phone,
+                    date: date,
+                    time: time
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                messageDiv.textContent = 'התור נקבע בהצלחה! תודה לך.';
+                messageDiv.style.color = 'green';
+                
+                // Reset form
+                nameInput.value = '';
+                phoneInput.value = '';
+                dateInput.value = '';
+                selectedTimeInput.value = '';
+                document.getElementById('time-slots').innerHTML = '';
+            } else {
+                messageDiv.textContent = result.error || 'שגיאה בקביעת תור';
+                messageDiv.style.color = 'red';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            messageDiv.textContent = 'שגיאה בקביעת תור. אנא נסה שוב.';
+            messageDiv.style.color = 'red';
+        }
+    }
+
+    // Event Listeners
+    dateInput.addEventListener('change', populateTimeSlots);
+    submitButton.addEventListener('click', submitAppointment);
 });
