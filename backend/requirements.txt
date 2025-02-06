@@ -6,6 +6,9 @@ alembic==1.13.1
 python-dotenv==1.0.0
 fastapi==0.109.0
 uvicorn==0.27.0.post1
+gunicorn==20.1.0
 httpx==0.26.0
 python-multipart==0.0.9
-gunicorn==20.1.0  # Added for better production deployment
+email-validator==2.1.0
+python-jose==3.3.0
+passlib==1.7.4
