@@ -50,29 +50,36 @@ const VALID_TIMES = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 // Table structure validation function
 async function validateTableStructure(supabaseClient) {
     try {
-        // Attempt to fetch table info
+        // Fetch table columns dynamically
         const { data, error } = await supabaseClient
             .from('appointments')
-            .select('id, date, time, name, phone', { count: 'exact' });
+            .select('*', { count: 'exact', head: true });
 
         if (error) {
-            debugLog('Table structure validation failed', {
+            debugLog('Table structure query failed', {
                 errorMessage: error.message,
-                errorCode: error.code
+                errorCode: error.code,
+                errorDetails: error
             });
             return false;
         }
 
-        debugLog('Table structure validation successful', {
-            totalRecords: data.length,
-            columns: ['id', 'date', 'time', 'name', 'phone']
+        // Attempt to get table schema
+        const schemaQuery = await supabaseClient
+            .rpc('get_table_schema', { table_name: 'appointments' });
+
+        debugLog('Table structure detailed validation', {
+            queryResult: data,
+            schemaQueryResult: schemaQuery.data,
+            expectedColumns: ['id', 'date', 'time', 'name', 'phone']
         });
 
         return true;
     } catch (catchError) {
         debugLog('Unexpected error during table validation', {
             errorMessage: catchError.message,
-            errorStack: catchError.stack
+            errorStack: catchError.stack,
+            errorName: catchError.name
         });
         return false;
     }
@@ -130,7 +137,8 @@ exports.handler = async (event, context) => {
             headers: corsHeaders,
             body: JSON.stringify({ 
                 error: 'Database configuration error', 
-                details: 'Invalid table structure' 
+                details: 'Invalid table structure',
+                debugInfo: 'Please check table columns and permissions'
             })
         };
     }
