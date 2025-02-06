@@ -9,9 +9,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedDateTitle = document.getElementById('selected-date-title');
     const selectedDateInput = document.getElementById('selected-date');
     const selectedTimeInput = document.getElementById('selected-time');
-    const messageDiv = document.createElement('div');
-    form.appendChild(messageDiv);
-    messageDiv.id = 'message';
+    
+    // Create message div if not exists
+    let messageDiv = document.getElementById('message');
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'message';
+        form.appendChild(messageDiv);
+    }
 
     // Backend API Configuration
     const API_BASE_URL = '/.netlify/functions';
@@ -30,9 +35,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showMessage(message, isError = false) {
-        messageDiv.textContent = message;
-        messageDiv.style.color = isError ? 'red' : 'green';
-        messageDiv.style.display = 'block';
+        if (messageDiv) {
+            messageDiv.textContent = message;
+            messageDiv.style.color = isError ? 'red' : 'green';
+            messageDiv.style.display = 'block';
+        } else {
+            console.error('Message display element not found');
+        }
     }
 
     // Date Generation
@@ -56,14 +65,14 @@ document.addEventListener('DOMContentLoaded', function() {
             dateButton.textContent = displayDate;
             dateButton.setAttribute('data-date', formattedDate);
             
-            dateButton.addEventListener('click', () => selectDate(formattedDate, displayDate));
+            dateButton.addEventListener('click', (event) => selectDate(event, formattedDate, displayDate));
             
             datesRow.appendChild(dateButton);
         }
     }
 
     // Date Selection
-    function selectDate(date, displayDate) {
+    function selectDate(event, date, displayDate) {
         document.querySelectorAll('.date-button').forEach(btn => 
             btn.classList.remove('active'));
         
@@ -102,14 +111,14 @@ document.addEventListener('DOMContentLoaded', function() {
             timeButton.classList.add('time-button');
             timeButton.textContent = slot.time;
             
-            timeButton.addEventListener('click', () => selectTime(slot.time));
+            timeButton.addEventListener('click', (event) => selectTime(event, slot.time));
             
             timesRow.appendChild(timeButton);
         });
     }
 
     // Time Selection
-    function selectTime(time) {
+    function selectTime(event, time) {
         document.querySelectorAll('.time-button').forEach(btn => 
             btn.classList.remove('active'));
         
@@ -135,8 +144,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const name = nameInput.value.trim();
         const phone = phoneInput.value.replace(/\D/g, '');
-        const selectedDate = document.querySelector('.date-button.active')?.dataset.date;
-        const selectedTime = document.querySelector('.time-button.active')?.textContent;
+        const selectedDateButton = document.querySelector('.date-button.active');
+        const selectedTimeButton = document.querySelector('.time-button.active');
+
+        const selectedDate = selectedDateButton ? selectedDateButton.dataset.date : null;
+        const selectedTime = selectedTimeButton ? selectedTimeButton.textContent : null;
 
         // Validation
         if (!name || name.length < 2) {
@@ -160,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/create-appointment`, {
+            const response = await fetch('/.netlify/functions/create-appointment', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
