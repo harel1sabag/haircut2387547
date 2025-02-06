@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedTimeInput = document.getElementById('selected-time');
 
     // Backend API Configuration
-    const API_BASE_URL = 'https://yourusername.pythonanywhere.com';
+    const API_BASE_URL = 'https://your-backend-url.com';
 
     // Available times
     const availableTimes = [
