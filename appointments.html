@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תורים קיימים</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>תורים קיימים</h1>
+        
+        <table id="appointments-table">
+            <thead>
+                <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>תאריך</th>
+                    <th>שעה</th>
+                    <th>פעולות</th>
+                </tr>
+            </thead>
+            <tbody id="appointments-list">
+                <!-- Appointments will be dynamically added here -->
+            </tbody>
+        </table>
+
+        <div id="cancel-confirmation" class="hidden">
+            <p>התור בוטל בהצלחה!</p>
+        </div>
+
+        <div class="navigation">
+            <a href="index.html" class="btn">חזרה לקביעת תור</a>
+        </div>
+    </div>
+    <script src="appointments.js"></script>
+</body>
+</html>

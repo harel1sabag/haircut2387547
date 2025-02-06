@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>כניסה להצגת תורים</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>כניסה להצגת תורים</h1>
+        
+        <form id="login-form">
+            <div class="form-group">
+                <label for="password">סיסמה:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div id="error-message" class="hidden error-message">
+                סיסמה שגויה. אנא נסה שוב.
+            </div>
+            
+            <button type="submit">כניסה</button>
+        </form>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

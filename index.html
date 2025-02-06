@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קביעת תור</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>קביעת תור לתספורת</h1>
+        
+        <form id="appointment-form">
+            <h2>קבע תור</h2>
+            <div class="form-group">
+                <label for="name">שם מלא:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">מספר טלפון:</label>
+                <input type="tel" id="phone" name="phone" placeholder="הזן מספר טלפון בתבנית 05x-xxx-xxxx" required>
+            </div>
+            
+            <div class="form-group">
+                <label>בחר תאריך ושעה:</label>
+                <small class="business-hours-note">שעות פעילות: 15:00 - 18:00</small>
+                <div id="date-selection-container">
+                    <div id="dates-row" class="dates-row">
+                        <!-- Dates will be dynamically populated here -->
+                    </div>
+                    <div id="times-container" class="times-container hidden">
+                        <h3 id="selected-date-title"></h3>
+                        <div id="times-row" class="times-row">
+                            <!-- Times will be dynamically populated here -->
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="selected-date" name="date" required>
+                <input type="hidden" id="selected-time" name="time" required>
+            </div>
+            
+            <button type="submit">אישור תור</button>
+        </form>
+        
+        <div id="confirmation" class="hidden">
+            <h3>התור נקבע בהצלחה!</h3>
+            <p id="confirmation-details"></p>
+        </div>
+
+        <div class="navigation">
+            <a href="login.html" class="btn">הצג תורים קיימים</a>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
