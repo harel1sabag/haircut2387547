@@ -1,5 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// Detailed logging function
+function logError(message, details = {}) {
+    console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        message,
+        ...details
+    }));
+}
+
 // CORS headers
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -9,9 +18,10 @@ const corsHeaders = {
 
 // Validate environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-    console.error('CRITICAL: Missing Supabase configuration');
-    console.error('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not Set');
-    console.error('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'Set' : 'Not Set');
+    logError('CRITICAL: Missing Supabase configuration', {
+        SUPABASE_URL: !!process.env.SUPABASE_URL,
+        SUPABASE_KEY: !!process.env.SUPABASE_KEY
+    });
 }
 
 // Supabase configuration
@@ -22,15 +32,17 @@ let supabase;
 try {
     supabase = createClient(supabaseUrl, supabaseKey);
 } catch (clientError) {
-    console.error('Failed to create Supabase client:', clientError);
+    logError('Failed to create Supabase client', { error: clientError.message });
 }
 
 // Valid time slots
 const VALID_TIMES = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 
 exports.handler = async (event, context) => {
-    console.log(' Available slots request received');
-    console.log('Full event:', JSON.stringify(event, null, 2));
+    logError('Available slots request received', { 
+        method: event.httpMethod,
+        queryParams: event.queryStringParameters 
+    });
 
     // Handle CORS preflight requests
     if (event.httpMethod === 'OPTIONS') {
@@ -43,7 +55,7 @@ exports.handler = async (event, context) => {
 
     // Only allow GET requests
     if (event.httpMethod !== 'GET') {
-        console.warn(' Invalid HTTP method:', event.httpMethod);
+        logError('Invalid HTTP method', { method: event.httpMethod });
         return { 
             statusCode: 405, 
             headers: corsHeaders,
@@ -53,7 +65,7 @@ exports.handler = async (event, context) => {
 
     // Validate Supabase client
     if (!supabase) {
-        console.error(' Supabase client not initialized');
+        logError('Supabase client not initialized');
         return {
             statusCode: 500,
             headers: corsHeaders,
@@ -66,11 +78,11 @@ exports.handler = async (event, context) => {
 
     try {
         const { target_date } = event.queryStringParameters || {};
-        console.log(' Requested date:', target_date);
+        logError('Processing date request', { target_date });
 
         // Validate date
         if (!target_date) {
-            console.warn(' No date provided');
+            logError('No date provided');
             return { 
                 statusCode: 400, 
                 headers: corsHeaders,
@@ -84,13 +96,16 @@ exports.handler = async (event, context) => {
             .select('time')
             .eq('date', target_date);
 
-        console.log(' Booked slots query result:', {
+        logError('Booked slots query result', { 
             bookedSlots: bookedSlots || 'No slots',
             error: error || 'No error'
         });
 
         if (error) {
-            console.error(' Supabase query error:', error);
+            logError('Supabase query error', { 
+                errorMessage: error.message,
+                errorDetails: error 
+            });
             return { 
                 statusCode: 500, 
                 headers: corsHeaders,
@@ -107,7 +122,7 @@ exports.handler = async (event, context) => {
             .filter(time => !bookedTimes.includes(time))
             .map(time => ({ time }));
 
-        console.log(' Available slots:', availableSlots);
+        logError('Available slots determined', { availableSlots });
 
         return {
             statusCode: 200,
@@ -116,7 +131,10 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error(' Available slots unexpected error:', error);
+        logError('Unexpected server error', { 
+            errorMessage: error.message,
+            errorStack: error.stack 
+        });
         return { 
             statusCode: 500, 
             headers: corsHeaders,
